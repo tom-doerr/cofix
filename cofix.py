@@ -31,10 +31,10 @@ FIX_PROMPT = (
 openai.organization = ORGANIZATION_ID
 openai.api_key = SECRET_KEY
 
-def assemble_prompt(lines_until_buggy_line, fix_prompt):
-    prompt_lines = lines_until_buggy_line[:-1]
+def assemble_prompt(lines_until_buggy_line, traceback, fix_prompt):
+    prompt_lines = lines_until_buggy_line
     prompt_lines.append(fix_prompt[0])
-    prompt_lines.append( '#' + lines_until_buggy_line[-1])
+    prompt_lines.append( '# "' + traceback.split('\n')[-2] + '"') 
     prompt_lines.append(fix_prompt[1])
     prompt = '\n'.join(prompt_lines)
     prompt += '\n'
@@ -59,11 +59,7 @@ def get_traceback(program):
 
 
 
-
-
-
-def get_fixed_code(traceback, level):
-
+def get_filename(traceback):
     # Get the line number from the traceback
     match = re.search(r'File \"(.*?)\", line ([0-9]+)', traceback)
     if not match:
@@ -71,9 +67,19 @@ def get_fixed_code(traceback, level):
         sys.exit(1)
 
     filename = match.group(1)
-    print("filename:", filename)
-    line_number = int(match.group(2))
-    print("line_number:", line_number)
+    return filename
+
+
+def get_source_code(filename):
+    # Read the whole program code.
+    with open(filename, 'r') as f:
+        code = f.read()
+
+    return code
+
+
+def get_fixed_code(code, traceback, level):
+
 
     # Get all the line numbers in the traceback.
     line_numbers = []
@@ -86,12 +92,10 @@ def get_fixed_code(traceback, level):
     line_number = line_numbers[level]
 
 
-    # Read the whole program code.
-    with open(filename, 'r') as f:
-        code = f.read()
 
     lines_until_buggy_line  = code.split('\n')[:line_number]
-    prompt = assemble_prompt(lines_until_buggy_line, FIX_PROMPT)
+    print("lines_until_buggy_line:", lines_until_buggy_line)
+    prompt = assemble_prompt(lines_until_buggy_line, traceback, FIX_PROMPT)
     input_prompt = prompt
     print("input_prompt:", input_prompt)
 
@@ -99,7 +103,7 @@ def get_fixed_code(traceback, level):
     # Create prompt that surrounds the buggy line with text indicating that this is
     # the line that should be fixed.
 
-    response = openai.Completion.create(engine='davinci-codex', prompt=input_prompt, temperature=0, max_tokens=64, stop='\n')
+    response = openai.Completion.create(engine='davinci-codex', prompt=input_prompt, temperature=0.5, max_tokens=64, stop='\n')
     fixed_line = response['choices'][0]['text']
 
     fixed_code = replace_faulty_line(code, fixed_line, line_number)
@@ -120,7 +124,7 @@ def get_fixed_code(traceback, level):
 
     print('\n'.join(colored_diff))
 
-    return filename, fixed_code
+    return fixed_code
 
 def replace_faulty_line(code, fixed_line, line_number):
     lines = code.split('\n')
@@ -157,6 +161,8 @@ def main(argv):
     for i in range(MAX_FIX_TRIES):
 
         traceback = get_traceback(program)
+
+
         # If the program didn't crash, exit
         if i == 0 and not traceback:
             print('No traceback, exiting')
@@ -167,10 +173,20 @@ def main(argv):
             print('Successfully fixed bug')
             sys.exit(0)
 
+        filename = get_filename(traceback)
+
+        if i > 0:
+            code = original_code
+            traceback = original_traceback
+        else:
+            original_code = get_source_code(filename)
+            code = original_code
+            original_traceback = traceback
+
         print('Trying to fix bug (try %d of %d)' % (i+1, MAX_FIX_TRIES))
 
         # Get the correct code for the line
-        filename, fixed_code = get_fixed_code(traceback, i)
+        fixed_code = get_fixed_code(code, traceback, i)
         print("fixed_code:", fixed_code)
 
         # Write the code to the file
