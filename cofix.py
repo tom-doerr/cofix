@@ -25,7 +25,7 @@ MAX_FIX_TRIES = 10
 
 FIX_PROMPT = (
         '# The above line throws the following exception:',
-        '# Line that does not throw the error:'
+        '# Line that does not throw the error:\n'
         )
 
 openai.organization = ORGANIZATION_ID
@@ -78,6 +78,22 @@ def get_source_code(filename):
     return code
 
 
+
+def show_diff(original, new):
+    d = difflib.Differ()
+    diff = d.compare(original.split('\n'), new.split('\n')[:len(original)])
+    colored_diff = []
+    for line in diff:
+        if line[0] == '+':
+            colored_diff.append('\033[92m' + line + '\033[0m')
+        elif line[0] == '-':
+            colored_diff.append('\033[91m' + line + '\033[0m')
+        else:
+            colored_diff.append(line)
+
+    print('\n'.join(colored_diff))
+
+
 def get_fixed_code(code, traceback, level):
 
 
@@ -94,7 +110,6 @@ def get_fixed_code(code, traceback, level):
 
 
     lines_until_buggy_line  = code.split('\n')[:line_number]
-    print("lines_until_buggy_line:", lines_until_buggy_line)
     prompt = assemble_prompt(lines_until_buggy_line, traceback, FIX_PROMPT)
     input_prompt = prompt
     print("input_prompt:", input_prompt)
@@ -111,18 +126,6 @@ def get_fixed_code(code, traceback, level):
     # Visualize diff between original code and fixed_code with color.
     # The inserted words are colored green, the delted parts red.
     # The rest is black.
-    d = difflib.Differ()
-    diff = d.compare(lines_until_buggy_line, fixed_code.split('\n')[:len(lines_until_buggy_line)])
-    colored_diff = []
-    for line in diff:
-        if line[0] == '+':
-            colored_diff.append('\033[92m' + line + '\033[0m')
-        elif line[0] == '-':
-            colored_diff.append('\033[91m' + line + '\033[0m')
-        else:
-            colored_diff.append(line)
-
-    print('\n'.join(colored_diff))
 
     return fixed_code
 
@@ -187,11 +190,14 @@ def main(argv):
 
         # Get the correct code for the line
         fixed_code = get_fixed_code(code, traceback, i)
-        print("fixed_code:", fixed_code)
+        # print("fixed_code:", fixed_code)
 
         # Write the code to the file
         with open(filename, 'w') as f:
             f.write(fixed_code)
+
+
+        show_diff(code, fixed_code)
 
         input()
 
