@@ -18,6 +18,7 @@ import time
 import random
 from AUTH import *
 import openai
+import difflib
 
 # The maximum number of times to try to fix a bug
 MAX_FIX_TRIES = 10
@@ -57,7 +58,11 @@ def get_traceback(program):
     return traceback
 
 
-def get_fixed_code(traceback):
+
+
+
+
+def get_fixed_code(traceback, level):
 
     # Get the line number from the traceback
     match = re.search(r'File \"(.*?)\", line ([0-9]+)', traceback)
@@ -70,6 +75,17 @@ def get_fixed_code(traceback):
     line_number = int(match.group(2))
     print("line_number:", line_number)
 
+    # Get all the line numbers in the traceback.
+    line_numbers = []
+    for line in traceback.split('\n'):
+        match = re.search(r'File \"(.*?)\", line ([0-9]+)', line)
+        if match:
+            line_numbers.append(int(match.group(2)))
+
+
+    line_number = line_numbers[level]
+
+
     # Read the whole program code.
     with open(filename, 'r') as f:
         code = f.read()
@@ -77,6 +93,7 @@ def get_fixed_code(traceback):
     lines_until_buggy_line  = code.split('\n')[:line_number]
     prompt = assemble_prompt(lines_until_buggy_line, FIX_PROMPT)
     input_prompt = prompt
+    print("input_prompt:", input_prompt)
 
 
     # Create prompt that surrounds the buggy line with text indicating that this is
@@ -86,6 +103,22 @@ def get_fixed_code(traceback):
     fixed_line = response['choices'][0]['text']
 
     fixed_code = replace_faulty_line(code, fixed_line, line_number)
+
+    # Visualize diff between original code and fixed_code with color.
+    # The inserted words are colored green, the delted parts red.
+    # The rest is black.
+    d = difflib.Differ()
+    diff = d.compare(lines_until_buggy_line, fixed_code.split('\n')[:len(lines_until_buggy_line)])
+    colored_diff = []
+    for line in diff:
+        if line[0] == '+':
+            colored_diff.append('\033[92m' + line + '\033[0m')
+        elif line[0] == '-':
+            colored_diff.append('\033[91m' + line + '\033[0m')
+        else:
+            colored_diff.append(line)
+
+    print('\n'.join(colored_diff))
 
     return filename, fixed_code
 
@@ -137,7 +170,7 @@ def main(argv):
         print('Trying to fix bug (try %d of %d)' % (i+1, MAX_FIX_TRIES))
 
         # Get the correct code for the line
-        filename, fixed_code = get_fixed_code(traceback)
+        filename, fixed_code = get_fixed_code(traceback, i)
         print("fixed_code:", fixed_code)
 
         # Write the code to the file
@@ -151,4 +184,5 @@ def main(argv):
 
 if __name__ == '__main__':
     main(sys.argv)
+
 
