@@ -142,22 +142,6 @@ def main(argv):
 
     program = argv[1]
 
-    # Example response:
-# response: {
-  # "choices": [
-    # {
-      # "finish_reason": "length",
-      # "index": 0,
-      # "logprobs": null,
-      # "text": "import pytz\n\ntimezones = ['America/New_York', 'America/Detroit', 'America/Kentucky/Louisville', 'America/Kentucky/Monticello', 'America/Indiana/Indianapolis', 'America/Indiana/Vincennes', 'America/Indiana/Win"
-    # }
-  # ],
-  # "created": 1634710889,
-  # "id": "cmpl-3uzGbX4bOreMWVHEWENPYXhgAA9W3",
-  # "model": "davinci-codex:2021-08-03",
-  # "object": "text_completion"
-# }
-
     
 
     # Try to fix the bug
