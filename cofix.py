@@ -112,7 +112,7 @@ def get_fixed_code(code, traceback, level):
     lines_until_buggy_line  = code.split('\n')[:line_number]
     prompt = assemble_prompt(lines_until_buggy_line, traceback, FIX_PROMPT)
     input_prompt = prompt
-    print("input_prompt:", input_prompt)
+    # print("input_prompt:", input_prompt)
 
 
     # Create prompt that surrounds the buggy line with text indicating that this is
@@ -198,8 +198,8 @@ def main(argv):
 
 
         show_diff(code, fixed_code)
+        print('======================================\n\n')
 
-        input()
 
 
     print('Failed to fix bug')
